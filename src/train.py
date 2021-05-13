@@ -1,14 +1,13 @@
 import tensorflow as tf
 import numpy as np
+import os
 from util import load_params, history_to_csv, history_list_to_csv
 
 import models
 
-
-MODEL_DIR = "models/fashion-mnist/"
-MODEL_FILE = os.path.join(MODEL_DIR, "model.h5")
 DATA_DIR = "data/fashion-mnist"
-
+MODEL_DIR = "models/fashion-mnist"
+MODEL_FILE = f"{MODEL_DIR}/model.h5"
 
 def load_npz_data(filename):
     npzfile = np.load(filename)
@@ -16,15 +15,16 @@ def load_npz_data(filename):
 
 def main():
     params = load_params()["train"]
-    m = models.get_model()
+    if params["resume"] and os.path.exists(MODEL_FILE):
+        m = tf.keras.models.load_model(MODEL_FILE)
+    else:
+        m = models.get_model()
     m.summary()
 
-    whole_train_img, whole_train_labels = load_npz_data(
-        os.path.join(DATA_DIR, "preprocessed/mnist-train.npz")
-    )
-    test_img, test_labels = load_npz_data(
-        os.path.join(DATA_DIR, "preprocessed/mnist-test.npz")
-    )
+    whole_train_img, whole_train_labels = load_npz_data( os.path.join(DATA_DIR,
+                                                                      "preprocessed/mnist-train.npz"))
+    test_img, test_labels = load_npz_data(os.path.join(DATA_DIR,
+                                                       "preprocessed/mnist-test.npz"))
     validation_split_index = int(
         (1 - params["validation_split"]) * whole_train_img.shape[0]
     )
@@ -53,7 +53,7 @@ def main():
                 batch_size=params["batch_size"],
                 epochs=1,
                 verbose=1,
-                validation_data=(x_valid, y_valid))
+                validation_data=(x_valid, y_valid),
             )
             history_list.append(history)
             with open("logs.csv", "w") as f:
@@ -66,11 +66,12 @@ def main():
             batch_size=params["batch_size"],
             epochs=params["epochs"],
             verbose=1,
-            validation_data=(x_valid, y_valid)
+            validation_data=(x_valid, y_valid),
         )
         with open("logs.csv", "w") as f:
             f.write(history_to_csv(history))
         m.save(MODEL_FILE)
+
 
 if __name__ == "__main__":
     main()
