@@ -44,7 +44,7 @@ stages:
     - train.seed
     - train.validation_split
     outs:
-      - models/fashion-mnist/model.h5:
+      - models/model.h5:
           checkpoint: true
     plots:
     - logs.csv:
@@ -52,7 +52,7 @@ stages:
   evaluate:
     cmd: python3 src/evaluate.py
     deps:
-    - models/fashion-mnist/model.h5
+    - models/model.h5
     - src/evaluate.py
     metrics:
     - metrics.json:
