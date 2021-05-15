@@ -1,49 +1,27 @@
 import tensorflow as tf
 import numpy as np
 import os
-import time
 from util import load_params, history_to_csv, history_list_to_csv
 
 import models
+from dvc.api import make_checkpoint
 
-MODEL_DIR = "models/fashion-mnist/"
-MODEL_FILE = os.path.join(MODEL_DIR, "model.h5")
 DATA_DIR = "data/fashion-mnist"
+MODEL_DIR = "models/fashion-mnist"
+MODEL_FILE = os.path.join(MODEL_DIR, "model.h5")
 
 class DVCCheckpointsCallback(tf.keras.callbacks.Callback):
 
     def __init__(self, frequency = 1):
         self.frequency = frequency
 
-    def dvc_signal(self):
-        "Generates a DVC signal file and blocks until it's deleted"
-        dvc_root = os.getenv("DVC_ROOT") # Root dir of dvc project.
-        if dvc_root: # Skip if not running via dvc.
-            signal_file = os.path.join(dvc_root, ".dvc", "tmp",
-                "DVC_CHECKPOINT")
-            with open(signal_file, "w") as f: # Write empty file.
-                f.write("")
-            while os.path.exists(signal_file): # Wait until dvc deletes file.
-                # Wait 10 milliseconds
-                time.sleep(0.01)
-
     def on_epoch_end(self, epoch, logs=None):
         if (epoch % self.frequency) == 0:
-            self.dvc_signal()
+            make_checkpoint()
 
 def load_npz_data(filename):
     npzfile = np.load(filename)
     return (npzfile['images'], npzfile['labels'])
-
-def history_to_csv(history):
-    keys = list(history.history.keys())
-    csv_string = ", ".join(["epoch"] + keys) + "\n"
-    list_len = len(history.history[keys[0]])
-    for i in range(list_len):
-        row = str(i+1) + ", " + ", ".join([str(history.history[k][i]) for k in keys]) + "\n"
-        csv_string += row
-
-    return csv_string
 
 def main():
     params = load_params()["train"]
@@ -53,10 +31,8 @@ def main():
         m = models.get_model()
     m.summary()
 
-    whole_train_img, whole_train_labels = load_npz_data(os.path.join(DATA_DIR,
-                                                                     "preprocessed/mnist-train.npz"))
-    test_img, test_labels = load_npz_data(os.path.join(DATA_DIR,
-                                                       "preprocessed/mnist-test.npz"))
+    whole_train_img, whole_train_labels = load_npz_data(os.path.join(DATA_DIR, "preprocessed/mnist-train.npz"))
+    test_img, test_labels = load_npz_data(os.path.join(DATA_DIR, "preprocessed/mnist-test.npz"))
     validation_split_index = int((1 - params["validation_split"]) * whole_train_img.shape[0])
     if validation_split_index == whole_train_img.shape[0]:
         x_train = whole_train_img
@@ -103,6 +79,7 @@ def main():
         with open("logs.csv", "w") as f:
             f.write(history_to_csv(history))
         m.save(MODEL_FILE)
+
 
 if __name__ == "__main__":
     main()
