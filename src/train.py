@@ -1,23 +1,24 @@
 import tensorflow as tf
 import numpy as np
 import os
-from util import load_params, history_to_csv, history_list_to_csv
 
+from util import load_params, history_to_csv, history_list_to_csv
 import models
 from dvc.api import make_checkpoint
+import dvclive
 
-DATA_DIR = "data/fashion-mnist"
-MODEL_DIR = "models/fashion-mnist"
+MODEL_DIR = "models/fashion-mnist/"
 MODEL_FILE = os.path.join(MODEL_DIR, "model.h5")
+DATA_DIR = "data/fashion-mnist"
 
-class DVCCheckpointsCallback(tf.keras.callbacks.Callback):
-
-    def __init__(self, frequency = 1):
-        self.frequency = frequency
+class DVCLiveCallback(tf.keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
-        if (epoch % self.frequency) == 0:
-            make_checkpoint()
+        logs = logs or {}
+        for metric, value in logs.items():
+            dvclive.log(metric, value)
+        dvclive.next_step()
+
 
 def load_npz_data(filename):
     npzfile = np.load(filename)
@@ -50,6 +51,8 @@ def main():
     print(f"y_train: {y_train.shape}")
     print(f"y_valid: {y_valid.shape}")
 
+    dvclive.init("training_metrics")
+
     if params["epochs"] == 0:
         history_list = []
         while True:
@@ -60,7 +63,7 @@ def main():
                 epochs=1,
                 verbose=1,
                 validation_data=(x_valid, y_valid),
-                callbacks=[DVCCheckpointsCallback(frequency=1)]
+                callbacks=[DVCLiveCallback()]
             )
             history_list.append(history)
             with open("logs.csv", "w") as f:
@@ -74,12 +77,11 @@ def main():
             epochs=params["epochs"],
             verbose=1,
             validation_data=(x_valid, y_valid),
-            callbacks=[DVCCheckpointsCallback(frequency=1)]
+            callbacks=[DVCLiveCallback()]
         )
         with open("logs.csv", "w") as f:
             f.write(history_to_csv(history))
         m.save(MODEL_FILE)
-
 
 if __name__ == "__main__":
     main()
